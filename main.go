@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"sync"
+	"time"
 )
 
 type TransactionType int
@@ -35,8 +36,8 @@ func main() {
 	account := &BankAccount{
 		value:               0,
 		mux:                 sync.Mutex{},
-		PendingTransactions: make(chan Transaction, 1), // Buffered channel to hold the transactions
-		PostedTransactions:  make(chan Transaction, 1), // Buffered channel to hold the transactions
+		PendingTransactions: make(chan Transaction, 10), // Buffered channel to hold the transactions
+		PostedTransactions:  make(chan Transaction, 10), // Buffered channel to hold the transactions
 	}
 
 	// Start a goroutine to process transactions
@@ -53,19 +54,32 @@ func main() {
 		account.completeTransaction()
 	}()
 
-	// Add a deposit transaction
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		account.addTransaction(100, Deposit)
+	transactions := []struct {
+		value           int
+		transactionType TransactionType
+	}{
+		{100, Deposit},
+		{50, Withdrawal},
+		{20, Deposit},
+	}
 
-	}()
+	// Add a deposit transaction
+	for _, transaction := range transactions {
+		wg.Add(1)
+		go func(value int, ttype TransactionType) {
+			defer wg.Done()
+			account.addTransaction(value, ttype)
+		}(transaction.value, transaction.transactionType)
+	}
 
 	// Wait for all goroutines to finish
-
+	time.Sleep(2 * time.Second)
+	close(account.PostedTransactions)
+	close(account.PendingTransactions)
 	wg.Wait()
 
 	fmt.Println(account.getBalance())
+	fmt.Println(account.Posted)
 
 	fmt.Println("Press ENTER to exit...")
 	fmt.Scanln()
@@ -102,7 +116,6 @@ func (b *BankAccount) addTransaction(value int, transactionType TransactionType)
 	select {
 	case b.PendingTransactions <- transaction:
 		fmt.Printf("Added a %s transaction of value %d\n", transactionType, value)
-		close(b.PendingTransactions)
 	default:
 		fmt.Println("Failed to add transaction: channel is full")
 	}
@@ -114,27 +127,23 @@ func (b *BankAccount) processTransactions() {
 		case transaction, ok := <-b.PendingTransactions:
 			if ok {
 				b.mux.Lock()
+				b.Pending = removeTransaction(b.Pending, transaction.ID)
 				switch transaction.Type {
 				case Deposit:
 					b.value += transaction.Value
-					b.Pending = removeTransaction(b.Pending, transaction.ID)
 					b.PostedTransactions <- transaction
 					fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
-					close(b.PostedTransactions)
+
 				case Withdrawal:
 					if b.value >= transaction.Value {
 						b.value -= transaction.Value
-						b.Pending = removeTransaction(b.Pending, transaction.ID)
 						b.PostedTransactions <- transaction
 						fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
-						close(b.PostedTransactions)
 					}
 				}
 				b.mux.Unlock()
-				return
 			} else {
-				fmt.Println("No transactions found")
-
+				fmt.Println("No transactions found to process")
 				return
 			}
 		default:
@@ -148,7 +157,7 @@ func removeTransaction(transactions []Transaction, id uuid.UUID) []Transaction {
 		if t.ID == id {
 			return append(transactions[:i], transactions[i+1:]...)
 		} else {
-			fmt.Println("Could not find transaction")
+			fmt.Println("Could not find transaction to remove")
 		}
 	}
 	return transactions
