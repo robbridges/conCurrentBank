@@ -40,14 +40,12 @@ func main() {
 		PostedTransactions:  make(chan Transaction, 10), // Buffered channel to hold the transactions
 	}
 
-	// Start a goroutine to process transactions
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		account.processTransactions()
 	}()
 
-	// Start a goroutine to complete transactions
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -63,7 +61,7 @@ func main() {
 		{20, Deposit},
 	}
 
-	// Add a deposit transaction
+	// process each transaction within its own go routine
 	for _, transaction := range transactions {
 		wg.Add(1)
 		go func(value int, ttype TransactionType) {
@@ -72,7 +70,6 @@ func main() {
 		}(transaction.value, transaction.transactionType)
 	}
 
-	// Wait for all goroutines to finish
 	time.Sleep(2 * time.Second)
 	close(account.PostedTransactions)
 	close(account.PendingTransactions)
