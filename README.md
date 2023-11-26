@@ -1,4 +1,4 @@
-# conCurrentBank
+# Go Concurrent bank
 
 Practicing concurrency lately and wanted to make a concurrent function that accepts a struct of value and type of type of transaction, then actions on it
 
