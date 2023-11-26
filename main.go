@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"sync"
-	"time"
 )
 
 type TransactionType int
@@ -22,6 +21,7 @@ type BankAccount struct {
 	Pending             []Transaction
 	PendingTransactions chan Transaction
 	PostedTransactions  chan Transaction
+	transactionCount    int
 }
 
 type Transaction struct {
@@ -38,6 +38,7 @@ func main() {
 		mux:                 sync.Mutex{},
 		PendingTransactions: make(chan Transaction, 10), // Buffered channel to hold the transactions
 		PostedTransactions:  make(chan Transaction, 10), // Buffered channel to hold the transactions
+		transactionCount:    0,
 	}
 
 	wg.Add(1)
@@ -61,22 +62,17 @@ func main() {
 		{20, Deposit},
 	}
 
-	// process each transaction within its own go routine
-	for _, transaction := range transactions {
-		wg.Add(1)
-		go func(value int, ttype TransactionType) {
-			defer wg.Done()
-			account.addTransaction(value, ttype)
-		}(transaction.value, transaction.transactionType)
-	}
-
-	time.Sleep(2 * time.Second)
-	close(account.PostedTransactions)
-	close(account.PendingTransactions)
+	// Start a single goroutine to add all transactions
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for _, transaction := range transactions {
+			account.addTransaction(transaction.value, transaction.transactionType)
+		}
+	}()
 	wg.Wait()
 
 	fmt.Println(account.getBalance())
-	fmt.Println(account.Posted)
 
 	fmt.Println("Press ENTER to exit...")
 	fmt.Scanln()
@@ -137,6 +133,11 @@ func (b *BankAccount) processTransactions() {
 						b.PostedTransactions <- transaction
 						fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
 					}
+				}
+				b.transactionCount++
+				if b.transactionCount == 3 {
+					close(b.PostedTransactions)
+					close(b.PendingTransactions)
 				}
 				b.mux.Unlock()
 			} else {
