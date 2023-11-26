@@ -8,6 +8,8 @@ func main() {
 		{100, Deposit},
 		{50, Withdrawal},
 		{20, Deposit},
+		{30, Deposit},
+		{5, Withdrawal},
 	}
 
 	startBank(transactions)

@@ -48,6 +48,9 @@ func startBank(transactions []struct {
 	go func() {
 		defer wg.Done()
 		account.processTransactions()
+		if account.transactionCount == len(transactions) {
+			close(account.PostedTransactions)
+		}
 	}()
 
 	wg.Add(1)
@@ -130,9 +133,6 @@ func (b *BankAccount) processTransactions() {
 					}
 				}
 				b.transactionCount++
-				if b.transactionCount == 3 {
-					close(b.PostedTransactions)
-				}
 				b.mux.Unlock()
 			} else {
 				fmt.Println("No transactions found to process")
