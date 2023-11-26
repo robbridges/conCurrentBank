@@ -69,6 +69,7 @@ func main() {
 		for _, transaction := range transactions {
 			account.addTransaction(transaction.value, transaction.transactionType)
 		}
+		close(account.PendingTransactions)
 	}()
 	wg.Wait()
 
@@ -137,7 +138,6 @@ func (b *BankAccount) processTransactions() {
 				b.transactionCount++
 				if b.transactionCount == 3 {
 					close(b.PostedTransactions)
-					close(b.PendingTransactions)
 				}
 				b.mux.Unlock()
 			} else {
