@@ -64,7 +64,10 @@ func startBank(transactions []struct {
 	go func() {
 		defer wg.Done()
 		for _, transaction := range transactions {
-			account.addTransaction(transaction.value, transaction.transactionType)
+			err := account.addTransaction(transaction.value, transaction.transactionType)
+			if err != nil {
+				continue
+			}
 		}
 		close(account.PendingTransactions)
 	}()
@@ -77,11 +80,12 @@ func startBank(transactions []struct {
 }
 
 func (b *BankAccount) deposit(amount int) {
-
+	// no need for a mutex here, this is called within a function that is wrapped in a mutex
 	b.value += amount
 }
 
 func (b *BankAccount) withdraw(amount int) error {
+	// also no need for a mutex
 	tempAmount := b.value - amount
 	if tempAmount < 0 {
 		return errors.New("Withdrawal failed, insufficent funds")
@@ -100,10 +104,10 @@ func (b *BankAccount) addTransaction(value int, transactionType TransactionType)
 	b.mux.Lock()
 	defer b.mux.Unlock()
 	transaction := Transaction{ID: uuid.New(), Value: value, Type: transactionType}
-	b.Pending = append(b.Pending, transaction) // Add transaction to Pending slice
 	select {
 	case b.PendingTransactions <- transaction:
 		fmt.Printf("Added a %s transaction of value %d\n", transactionType, value)
+		b.Pending = append(b.Pending, transaction)
 	default:
 		err := errors.New("Unable to add transaction")
 		return err
