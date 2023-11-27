@@ -29,7 +29,10 @@ func TestWithdraw(t *testing.T) {
 		PostedTransactions:  make(chan Transaction, 10), // Buffered channel to hold the transactions
 		transactionCount:    0,
 	}
-	account.withdraw(35)
+	err := account.withdraw(35)
+	if err != nil {
+		t.Errorf("Expected no error withdrawing funds")
+	}
 	want := 15
 	got := account.getBalance()
 	if got != want {
@@ -98,7 +101,14 @@ func TestAddTransaction(t *testing.T) {
 		}
 	})
 	t.Run("Sad path, channel full", func(t *testing.T) {
-		account.PendingTransactions = make(chan Transaction, 1)
+		account := &BankAccount{
+			value:               72,
+			mux:                 sync.Mutex{},
+			PendingTransactions: make(chan Transaction, 1),
+			PostedTransactions:  make(chan Transaction, 10),
+			transactionCount:    0,
+			Pending:             []Transaction{},
+		}
 		err := account.addTransaction(20, Deposit)
 		if err != nil {
 			t.Errorf("Unexpected error when adding first transaction")
@@ -130,21 +140,22 @@ func TestAddTransaction(t *testing.T) {
 }
 
 func TestProcessTransactions(t *testing.T) {
-	account := &BankAccount{
-		value:               72,
-		mux:                 sync.Mutex{},
-		PendingTransactions: make(chan Transaction, 10),
-		PostedTransactions:  make(chan Transaction, 10),
-		transactionCount:    0,
-		Pending:             make([]Transaction, 0),
-		Posted:              make([]Transaction, 0),
-	}
 	t.Run("Happy path withdrawal", func(t *testing.T) {
+		// each test needs its own account, we had data bleeding into other tests without this
+		account := &BankAccount{
+			value:               72,
+			mux:                 sync.Mutex{},
+			PendingTransactions: make(chan Transaction, 10),
+			PostedTransactions:  make(chan Transaction, 10),
+			transactionCount:    0,
+			Pending:             make([]Transaction, 0),
+			Posted:              make([]Transaction, 0),
+		}
 		err := account.addTransaction(30, Withdrawal)
 		if err != nil {
 			t.Errorf("Expected no error adding to transaction")
 		}
-		// need to close the pendingtransactions channel when we're doing adding transactions
+		// need to close the pending transactions channel when we're doing adding transactions
 		close(account.PendingTransactions)
 		err = account.processTransactions()
 		if err != nil {
@@ -170,11 +181,20 @@ func TestProcessTransactions(t *testing.T) {
 		}
 	})
 	t.Run("Happy Path Deposit", func(t *testing.T) {
+		account := &BankAccount{
+			value:               72,
+			mux:                 sync.Mutex{},
+			PendingTransactions: make(chan Transaction, 10),
+			PostedTransactions:  make(chan Transaction, 10),
+			transactionCount:    0,
+			Pending:             make([]Transaction, 0),
+			Posted:              make([]Transaction, 0),
+		}
 		err := account.addTransaction(55, Deposit)
 		if err != nil {
 			t.Errorf("Expected no error adding to transaction")
 		}
-		// need to close the pendingtransactions channel when we're doing adding transactions
+		// need to close the pending transactions channel when we're doing adding transactions
 		close(account.PendingTransactions)
 		err = account.processTransactions()
 		if err != nil {
@@ -199,7 +219,16 @@ func TestProcessTransactions(t *testing.T) {
 			t.Errorf("The bank account balance should have been updated from the Deposit: got %d, expected: %d", got, want)
 		}
 	})
-	t.Run("Sad Path insufficent funds", func(t *testing.T) {
+	t.Run("Sad Path insufficient funds", func(t *testing.T) {
+		account := &BankAccount{
+			value:               72,
+			mux:                 sync.Mutex{},
+			PendingTransactions: make(chan Transaction, 10),
+			PostedTransactions:  make(chan Transaction, 10),
+			transactionCount:    0,
+			Pending:             make([]Transaction, 0),
+			Posted:              make([]Transaction, 0),
+		}
 		err := account.addTransaction(200, Withdrawal)
 		if err != nil {
 			t.Errorf("Unexpected error processing withdrawal")

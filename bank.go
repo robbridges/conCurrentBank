@@ -47,7 +47,13 @@ func startBank(transactions []struct {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		account.processTransactions()
+		err := account.processTransactions()
+		if err != nil {
+			panic(err)
+		}
+		if account.transactionCount == len(transactions) {
+			close(account.PostedTransactions)
+		}
 	}()
 
 	wg.Add(1)
@@ -73,7 +79,10 @@ func startBank(transactions []struct {
 	fmt.Println(account.getBalance())
 
 	fmt.Println("Press ENTER to exit...")
-	fmt.Scanln()
+	_, err := fmt.Scanln()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (b *BankAccount) deposit(amount int) {
@@ -85,7 +94,7 @@ func (b *BankAccount) withdraw(amount int) error {
 	// also no need for a mutex
 	tempAmount := b.value - amount
 	if tempAmount < 0 {
-		return errors.New("Withdrawal failed, insufficent funds")
+		return errors.New("withdrawal failed, insufficient funds")
 	}
 	b.value -= amount
 	return nil
@@ -106,7 +115,7 @@ func (b *BankAccount) addTransaction(value int, transactionType TransactionType)
 		fmt.Printf("Added a %s transaction of value %d\n", transactionType, value)
 		b.Pending = append(b.Pending, transaction)
 	default:
-		err := errors.New("Unable to add transaction")
+		err := errors.New("unable to add transaction")
 		return err
 	}
 	return nil
@@ -128,9 +137,9 @@ func (b *BankAccount) processTransactions() error {
 				case Withdrawal:
 					err := b.withdraw(transaction.Value)
 					if err != nil {
-						inSufficentFundsErr := errors.New("Insufficent funds to complete transaction")
+						inSufficientFundsErr := errors.New("insufficient funds to complete transaction")
 						b.mux.Unlock()
-						return inSufficentFundsErr
+						return inSufficientFundsErr
 					}
 
 					b.PostedTransactions <- transaction
@@ -140,7 +149,6 @@ func (b *BankAccount) processTransactions() error {
 				b.transactionCount++
 				b.mux.Unlock()
 			} else {
-				close(b.PostedTransactions)
 				fmt.Println("No transactions found to process")
 				return nil
 			}
