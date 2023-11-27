@@ -48,9 +48,6 @@ func startBank(transactions []struct {
 	go func() {
 		defer wg.Done()
 		account.processTransactions()
-		if account.transactionCount == len(transactions) {
-			close(account.PostedTransactions)
-		}
 	}()
 
 	wg.Add(1)
@@ -129,20 +126,21 @@ func (b *BankAccount) processTransactions() error {
 					fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
 
 				case Withdrawal:
-					if b.value >= transaction.Value {
-						err := b.withdraw(transaction.Value)
-						if err != nil {
-							inSufficentFundsErr := errors.New("Insufficent funds to complete transaction")
-							return inSufficentFundsErr
-						}
-
-						b.PostedTransactions <- transaction
-						fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
+					err := b.withdraw(transaction.Value)
+					if err != nil {
+						inSufficentFundsErr := errors.New("Insufficent funds to complete transaction")
+						b.mux.Unlock()
+						return inSufficentFundsErr
 					}
+
+					b.PostedTransactions <- transaction
+					fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
+
 				}
 				b.transactionCount++
 				b.mux.Unlock()
 			} else {
+				close(b.PostedTransactions)
 				fmt.Println("No transactions found to process")
 				return nil
 			}

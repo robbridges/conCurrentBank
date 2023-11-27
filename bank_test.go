@@ -129,6 +129,93 @@ func TestAddTransaction(t *testing.T) {
 	})
 }
 
+func TestProcessTransactions(t *testing.T) {
+	account := &BankAccount{
+		value:               72,
+		mux:                 sync.Mutex{},
+		PendingTransactions: make(chan Transaction, 10),
+		PostedTransactions:  make(chan Transaction, 10),
+		transactionCount:    0,
+		Pending:             make([]Transaction, 0),
+		Posted:              make([]Transaction, 0),
+	}
+	t.Run("Happy path withdrawal", func(t *testing.T) {
+		err := account.addTransaction(30, Withdrawal)
+		if err != nil {
+			t.Errorf("Expected no error adding to transaction")
+		}
+		// need to close the pendingtransactions channel when we're doing adding transactions
+		close(account.PendingTransactions)
+		err = account.processTransactions()
+		if err != nil {
+			t.Errorf("Unexpected error processing transaction")
+		}
+		want := 0
+		got := len(account.Pending)
+		if want != got {
+			t.Errorf("Expected the pending transactions to be cleared during processing")
+		}
+
+		want = 1
+		got = len(account.PostedTransactions)
+		if want != got {
+			t.Errorf("Expected the posted transaction to be in the slice")
+		}
+
+		want = 42
+		got = account.getBalance()
+
+		if want != got {
+			t.Errorf("The bank account balance should have been updated from the withdrawal")
+		}
+	})
+	t.Run("Happy Path Deposit", func(t *testing.T) {
+		err := account.addTransaction(55, Deposit)
+		if err != nil {
+			t.Errorf("Expected no error adding to transaction")
+		}
+		// need to close the pendingtransactions channel when we're doing adding transactions
+		close(account.PendingTransactions)
+		err = account.processTransactions()
+		if err != nil {
+			t.Errorf("Unexpected error processing transaction")
+		}
+		want := 0
+		got := len(account.Pending)
+		if want != got {
+			t.Errorf("Expected the pending transactions to be cleared during processing")
+		}
+
+		want = 1
+		got = len(account.PostedTransactions)
+		if want != got {
+			t.Errorf("Expected the posted transaction to be in the slice")
+		}
+
+		want = 127
+		got = account.getBalance()
+
+		if want != got {
+			t.Errorf("The bank account balance should have been updated from the Deposit: got %d, expected: %d", got, want)
+		}
+	})
+	t.Run("Sad Path insufficent funds", func(t *testing.T) {
+		err := account.addTransaction(200, Withdrawal)
+		if err != nil {
+			t.Errorf("Unexpected error processing withdrawal")
+		}
+		close(account.PendingTransactions)
+		err = account.processTransactions()
+		if err == nil {
+			t.Errorf("expected error withdrawing amount")
+		}
+		// transaction should not have processed and bank account should have been the same
+		if account.getBalance() != 72 {
+			t.Errorf("The value should have never been deducted")
+		}
+	})
+}
+
 func BenchmarkMain(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		main()
