@@ -77,14 +77,11 @@ func startBank(transactions []struct {
 }
 
 func (b *BankAccount) deposit(amount int) {
-	b.mux.Lock()
-	defer b.mux.Unlock()
+
 	b.value += amount
 }
 
 func (b *BankAccount) withdraw(amount int) error {
-	b.mux.Lock()
-	defer b.mux.Unlock()
 	tempAmount := b.value - amount
 	if tempAmount < 0 {
 		return errors.New("Withdrawal failed, insufficent funds")
@@ -99,7 +96,7 @@ func (b *BankAccount) getBalance() int {
 	return b.value
 }
 
-func (b *BankAccount) addTransaction(value int, transactionType TransactionType) {
+func (b *BankAccount) addTransaction(value int, transactionType TransactionType) error {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 	transaction := Transaction{ID: uuid.New(), Value: value, Type: transactionType}
@@ -108,11 +105,13 @@ func (b *BankAccount) addTransaction(value int, transactionType TransactionType)
 	case b.PendingTransactions <- transaction:
 		fmt.Printf("Added a %s transaction of value %d\n", transactionType, value)
 	default:
-		fmt.Println("Failed to add transaction: channel is full")
+		err := errors.New("Unable to add transaction")
+		return err
 	}
+	return nil
 }
 
-func (b *BankAccount) processTransactions() {
+func (b *BankAccount) processTransactions() error {
 	for {
 		select {
 		case transaction, ok := <-b.PendingTransactions:
@@ -121,13 +120,18 @@ func (b *BankAccount) processTransactions() {
 				b.Pending = removeTransaction(b.Pending, transaction.ID)
 				switch transaction.Type {
 				case Deposit:
-					b.value += transaction.Value
+					b.deposit(transaction.Value)
 					b.PostedTransactions <- transaction
 					fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
 
 				case Withdrawal:
 					if b.value >= transaction.Value {
-						b.value -= transaction.Value
+						err := b.withdraw(transaction.Value)
+						if err != nil {
+							inSufficentFundsErr := errors.New("Insufficent funds to complete transaction")
+							return inSufficentFundsErr
+						}
+
 						b.PostedTransactions <- transaction
 						fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)
 					}
@@ -136,10 +140,9 @@ func (b *BankAccount) processTransactions() {
 				b.mux.Unlock()
 			} else {
 				fmt.Println("No transactions found to process")
-				return
+				return nil
 			}
 		default:
-			// No transaction is ready to be processed, so we can do other work here
 		}
 	}
 }
@@ -157,10 +160,8 @@ func removeTransaction(transactions []Transaction, id uuid.UUID) []Transaction {
 
 func (b *BankAccount) completeTransaction() {
 	for transaction := range b.PostedTransactions {
-		b.mux.Lock()
 		b.Posted = append(b.Posted, transaction)
 		fmt.Printf("Completed a %s transaction of value %d\n", transaction.Type, transaction.Value)
-		b.mux.Unlock()
 	}
 }
 
