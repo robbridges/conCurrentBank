@@ -1,0 +1,310 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>go_bank: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">go_bank/bank.go (56.4%)</option>
+				
+				<option value="file1">go_bank/main.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "errors"
+        "fmt"
+        "github.com/google/uuid"
+        "sync"
+)
+
+type TransactionType int
+
+const (
+        Deposit TransactionType = iota
+        Withdrawal
+)
+
+type BankAccount struct {
+        value               int
+        mux                 sync.Mutex
+        Posted              []Transaction
+        Pending             []Transaction
+        PendingTransactions chan Transaction
+        PostedTransactions  chan Transaction
+        transactionCount    int
+}
+
+type Transaction struct {
+        ID    uuid.UUID
+        Value int
+        Type  TransactionType
+}
+
+func startBank(transactions []struct {
+        value           int
+        transactionType TransactionType
+}) <span class="cov0" title="0">{
+        var wg sync.WaitGroup
+
+        account := &amp;BankAccount{
+                value:               0,
+                mux:                 sync.Mutex{},
+                PendingTransactions: make(chan Transaction, 10), // Buffered channel to hold the transactions
+                PostedTransactions:  make(chan Transaction, 10), // Buffered channel to hold the transactions
+                transactionCount:    0,
+        }
+
+        wg.Add(1)
+        go func() </span><span class="cov0" title="0">{
+                defer wg.Done()
+                err := account.processTransactions()
+                if err != nil </span><span class="cov0" title="0">{
+                        panic(err)</span>
+                }
+                <span class="cov0" title="0">if account.transactionCount == len(transactions) </span><span class="cov0" title="0">{
+                        close(account.PostedTransactions)
+                }</span>
+        }()
+
+        <span class="cov0" title="0">wg.Add(1)
+        go func() </span><span class="cov0" title="0">{
+                defer wg.Done()
+                account.completeTransaction()
+        }</span>()
+
+        // Start a single goroutine to add all transactions
+        <span class="cov0" title="0">wg.Add(1)
+        go func() </span><span class="cov0" title="0">{
+                defer wg.Done()
+                for _, transaction := range transactions </span><span class="cov0" title="0">{
+                        err := account.addTransaction(transaction.value, transaction.transactionType)
+                        if err != nil </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                }
+                <span class="cov0" title="0">close(account.PendingTransactions)</span>
+        }()
+        <span class="cov0" title="0">wg.Wait()
+
+        fmt.Println(account.getBalance())
+
+        fmt.Println("Press ENTER to exit...")
+        _, err := fmt.Scanln()
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+}
+
+func (b *BankAccount) deposit(amount int) <span class="cov8" title="1">{
+        // no need for a mutex here, this is called within a function that is wrapped in a mutex
+        b.value += amount
+}</span>
+
+func (b *BankAccount) withdraw(amount int) error <span class="cov8" title="1">{
+        // also no need for a mutex
+        tempAmount := b.value - amount
+        if tempAmount &lt; 0 </span><span class="cov8" title="1">{
+                return errors.New("withdrawal failed, insufficient funds")
+        }</span>
+        <span class="cov8" title="1">b.value -= amount
+        return nil</span>
+}
+
+func (b *BankAccount) getBalance() int <span class="cov8" title="1">{
+        b.mux.Lock()
+        defer b.mux.Unlock()
+        return b.value
+}</span>
+
+func (b *BankAccount) addTransaction(value int, transactionType TransactionType) error <span class="cov8" title="1">{
+        b.mux.Lock()
+        defer b.mux.Unlock()
+        transaction := Transaction{ID: uuid.New(), Value: value, Type: transactionType}
+        select </span>{
+        case b.PendingTransactions &lt;- transaction:<span class="cov8" title="1">
+                fmt.Printf("Added a %s transaction of value %d\n", transactionType, value)
+                b.Pending = append(b.Pending, transaction)</span>
+        default:<span class="cov8" title="1">
+                err := errors.New("unable to add transaction")
+                return err</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (b *BankAccount) processTransactions() error <span class="cov8" title="1">{
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case transaction, ok := &lt;-b.PendingTransactions:<span class="cov8" title="1">
+                        if ok </span><span class="cov8" title="1">{
+                                b.mux.Lock()
+                                b.Pending = removeTransaction(b.Pending, transaction.ID)
+                                switch transaction.Type </span>{
+                                case Deposit:<span class="cov8" title="1">
+                                        b.deposit(transaction.Value)
+                                        b.PostedTransactions &lt;- transaction
+                                        fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)</span>
+
+                                case Withdrawal:<span class="cov8" title="1">
+                                        err := b.withdraw(transaction.Value)
+                                        if err != nil </span><span class="cov8" title="1">{
+                                                inSufficientFundsErr := errors.New("insufficient funds to complete transaction")
+                                                b.mux.Unlock()
+                                                return inSufficientFundsErr
+                                        }</span>
+
+                                        <span class="cov8" title="1">b.PostedTransactions &lt;- transaction
+                                        fmt.Printf("Processed a %s transaction of value %d\n", transaction.Type, transaction.Value)</span>
+
+                                }
+                                <span class="cov8" title="1">b.transactionCount++
+                                b.mux.Unlock()</span>
+                        } else<span class="cov8" title="1"> {
+                                fmt.Println("No transactions found to process")
+                                return nil
+                        }</span>
+                default:<span class="cov0" title="0"></span>
+                }
+        }
+}
+
+func removeTransaction(transactions []Transaction, id uuid.UUID) []Transaction <span class="cov8" title="1">{
+        for i, t := range transactions </span><span class="cov8" title="1">{
+                if t.ID == id </span><span class="cov8" title="1">{
+                        return append(transactions[:i], transactions[i+1:]...)
+                }</span> else<span class="cov0" title="0"> {
+                        fmt.Println("Could not find transaction to remove")
+                }</span>
+        }
+        <span class="cov0" title="0">return transactions</span>
+}
+
+func (b *BankAccount) completeTransaction() <span class="cov0" title="0">{
+        for transaction := range b.PostedTransactions </span><span class="cov0" title="0">{
+                b.Posted = append(b.Posted, transaction)
+                fmt.Printf("Completed a %s transaction of value %d\n", transaction.Type, transaction.Value)
+        }</span>
+}
+
+func (t TransactionType) String() string <span class="cov8" title="1">{
+        switch t </span>{
+        case Deposit:<span class="cov8" title="1">
+                return "Deposit"</span>
+        case Withdrawal:<span class="cov8" title="1">
+                return "Withdrawal"</span>
+        default:<span class="cov0" title="0">
+                return "Unknown"</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+func main() <span class="cov0" title="0">{
+        transactions := []struct {
+                value           int
+                transactionType TransactionType
+        }{
+                {100, Deposit},
+                {50, Withdrawal},
+                {20, Deposit},
+                {30, Deposit},
+                {5, Withdrawal},
+        }
+
+        startBank(transactions)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

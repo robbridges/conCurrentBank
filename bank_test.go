@@ -132,7 +132,7 @@ func TestAddTransaction(t *testing.T) {
 		}
 
 		stringGot := err.Error()
-		stringWant := "Unable to add transaction"
+		stringWant := "unable to add transaction"
 		if stringGot != stringWant {
 			t.Errorf("Wrong error message returned, error:%s, wanted:%s", stringGot, stringWant)
 		}
