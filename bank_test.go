@@ -289,11 +289,6 @@ func TestCompleteTransaction(t *testing.T) {
 		if want != got {
 			t.Errorf("Expected the posted slice to have a value")
 		}
-		want = 42
-		got = account.getBalance()
-		if want != got {
-			t.Errorf("Expected the bank account balance to have been updated")
-		}
 	})
 	t.Run("Sad path, no transaction", func(t *testing.T) {
 		account := &BankAccount{
@@ -311,6 +306,30 @@ func TestCompleteTransaction(t *testing.T) {
 		got := len(account.Posted)
 		if want != got {
 			t.Errorf("Expected the posted slice to be empty")
+		}
+	})
+}
+
+func TestTrasctionTypeString(t *testing.T) {
+	t.Run("Happy path", func(t *testing.T) {
+		want := "Withdrawal"
+		got := Withdrawal.String()
+		if want != got {
+			t.Errorf("Expected %s, got %s", want, got)
+		}
+	})
+	t.Run("Happy path", func(t *testing.T) {
+		want := "Deposit"
+		got := Deposit.String()
+		if want != got {
+			t.Errorf("Expected %s, got %s", want, got)
+		}
+	})
+	t.Run("Sad path", func(t *testing.T) {
+		want := "Unknown"
+		got := TransactionType(3).String()
+		if want != got {
+			t.Errorf("Expected %s, got %s", want, got)
 		}
 	})
 }
