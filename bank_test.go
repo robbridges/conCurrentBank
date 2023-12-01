@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/google/uuid"
 	"sync"
 	"testing"
 )
@@ -241,6 +242,75 @@ func TestProcessTransactions(t *testing.T) {
 		// transaction should not have processed and bank account should have been the same
 		if account.getBalance() != 72 {
 			t.Errorf("The value should have never been deducted")
+		}
+	})
+}
+
+func TestRemoveTransaction(t *testing.T) {
+	transaction := Transaction{uuid.New(), 30, Withdrawal}
+	t.Log(transaction.ID)
+	transactions := []Transaction{transaction}
+	account := &BankAccount{
+		value:               72,
+		mux:                 sync.Mutex{},
+		PendingTransactions: make(chan Transaction, 10),
+		PostedTransactions:  make(chan Transaction, 10),
+		transactionCount:    0,
+		Pending:             transactions,
+		Posted:              make([]Transaction, 0),
+	}
+	if len(account.Pending) != 1 {
+		t.Errorf("Expected the pending slice to have a value")
+	}
+	account.Pending = removeTransaction(account.Pending, transaction.ID)
+	if len(account.Pending) != 0 {
+		t.Errorf("Expected the pending slice to be empty")
+	}
+	t.Log(account.Pending)
+}
+
+func TestCompleteTransaction(t *testing.T) {
+	t.Run("Happy path", func(t *testing.T) {
+		account := &BankAccount{
+			value:               72,
+			mux:                 sync.Mutex{},
+			PendingTransactions: make(chan Transaction, 10),
+			PostedTransactions:  make(chan Transaction, 10),
+			transactionCount:    0,
+			Pending:             make([]Transaction, 0),
+			Posted:              make([]Transaction, 0),
+		}
+		transaction := Transaction{uuid.New(), 30, Withdrawal}
+		account.PostedTransactions <- transaction
+		close(account.PostedTransactions)
+		account.completeTransaction()
+		want := 1
+		got := len(account.Posted)
+		if want != got {
+			t.Errorf("Expected the posted slice to have a value")
+		}
+		want = 42
+		got = account.getBalance()
+		if want != got {
+			t.Errorf("Expected the bank account balance to have been updated")
+		}
+	})
+	t.Run("Sad path, no transaction", func(t *testing.T) {
+		account := &BankAccount{
+			value:               72,
+			mux:                 sync.Mutex{},
+			PendingTransactions: make(chan Transaction, 10),
+			PostedTransactions:  make(chan Transaction, 10),
+			transactionCount:    0,
+			Pending:             make([]Transaction, 0),
+			Posted:              make([]Transaction, 0),
+		}
+		close(account.PostedTransactions)
+		account.completeTransaction()
+		want := 0
+		got := len(account.Posted)
+		if want != got {
+			t.Errorf("Expected the posted slice to be empty")
 		}
 	})
 }
