@@ -335,22 +335,41 @@ func TestTrasctionTypeString(t *testing.T) {
 }
 
 func TestStartBank(t *testing.T) {
-	transactions := []struct {
-		value           int
-		transactionType TransactionType
-	}{
-		{100, Deposit},
-		{50, Withdrawal},
-		{20, Deposit},
-		{30, Deposit},
-		{5, Withdrawal},
-	}
+	t.Run("happy path mixed amounts", func(t *testing.T) {
+		transactions := []struct {
+			value           int
+			transactionType TransactionType
+		}{
+			{100, Deposit},
+			{50, Withdrawal},
+			{20, Deposit},
+			{30, Deposit},
+			{5, Withdrawal},
+		}
 
-	got := startBank(transactions)
-	want := 95
-	if got != want {
-		t.Errorf("Wrong value returned from transactionsw")
-	}
+		got := startBank(transactions)
+		want := 95
+		if got != want {
+			t.Errorf("Wrong value returned from transactions want: %d got: %d", want, got)
+		}
+	})
+	t.Run("Happy Path, all deposits", func(t *testing.T) {
+		transactions := []struct {
+			value           int
+			transactionType TransactionType
+		}{
+			{15, Deposit},
+			{2, Deposit},
+			{60, Deposit},
+			{10, Deposit},
+			{5, Deposit},
+		}
+		got := startBank(transactions)
+		want := 92
+		if got != want {
+			t.Errorf("Wrong value returned from transactions want: %d got: %d", want, got)
+		}
+	})
 }
 
 func BenchmarkMain(b *testing.B) {
