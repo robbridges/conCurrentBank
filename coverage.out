@@ -1,17 +1,17 @@
 mode: set
-go_bank/bank.go:36.4,48.12 4 0
-go_bank/bank.go:48.12,51.17 3 0
+go_bank/bank.go:36.4,48.12 4 1
+go_bank/bank.go:48.12,51.17 3 1
 go_bank/bank.go:51.17,52.14 1 0
-go_bank/bank.go:54.3,54.52 1 0
-go_bank/bank.go:54.52,56.4 1 0
-go_bank/bank.go:59.2,60.12 2 0
-go_bank/bank.go:60.12,63.3 2 0
-go_bank/bank.go:66.2,67.12 2 0
-go_bank/bank.go:67.12,69.44 2 0
-go_bank/bank.go:69.44,71.18 2 0
+go_bank/bank.go:54.3,54.52 1 1
+go_bank/bank.go:54.52,56.4 1 1
+go_bank/bank.go:59.2,60.12 2 1
+go_bank/bank.go:60.12,63.3 2 1
+go_bank/bank.go:66.2,67.12 2 1
+go_bank/bank.go:67.12,69.44 2 1
+go_bank/bank.go:69.44,71.18 2 1
 go_bank/bank.go:71.18,72.13 1 0
-go_bank/bank.go:75.3,75.37 1 0
-go_bank/bank.go:77.2,83.16 5 0
+go_bank/bank.go:75.3,75.37 1 1
+go_bank/bank.go:77.2,83.16 5 1
 go_bank/bank.go:83.16,84.13 1 0
 go_bank/bank.go:88.43,91.2 1 1
 go_bank/bank.go:93.50,96.20 2 1
@@ -32,7 +32,7 @@ go_bank/bank.go:139.20,143.7 3 1
 go_bank/bank.go:145.6,146.97 2 1
 go_bank/bank.go:149.5,150.19 2 1
 go_bank/bank.go:151.10,154.5 2 1
-go_bank/bank.go:155.11,155.11 0 0
+go_bank/bank.go:155.11,155.11 0 1
 go_bank/bank.go:160.80,161.33 1 1
 go_bank/bank.go:161.33,162.17 1 1
 go_bank/bank.go:162.17,164.4 1 1

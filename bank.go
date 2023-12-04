@@ -33,7 +33,7 @@ type Transaction struct {
 func startBank(transactions []struct {
 	value           int
 	transactionType TransactionType
-}) {
+}) int {
 	var wg sync.WaitGroup
 
 	account := &BankAccount{
@@ -77,12 +77,7 @@ func startBank(transactions []struct {
 	wg.Wait()
 
 	fmt.Println(account.getBalance())
-
-	fmt.Println("Press ENTER to exit...")
-	_, err := fmt.Scanln()
-	if err != nil {
-		panic(err)
-	}
+	return account.getBalance()
 }
 
 func (b *BankAccount) deposit(amount int) {

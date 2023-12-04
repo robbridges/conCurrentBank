@@ -334,6 +334,25 @@ func TestTrasctionTypeString(t *testing.T) {
 	})
 }
 
+func TestStartBank(t *testing.T) {
+	transactions := []struct {
+		value           int
+		transactionType TransactionType
+	}{
+		{100, Deposit},
+		{50, Withdrawal},
+		{20, Deposit},
+		{30, Deposit},
+		{5, Withdrawal},
+	}
+
+	got := startBank(transactions)
+	want := 95
+	if got != want {
+		t.Errorf("Wrong value returned from transactionsw")
+	}
+}
+
 func BenchmarkMain(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		main()
